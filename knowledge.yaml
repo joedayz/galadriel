@@ -1,0 +1,70 @@
+kcp_version: "0.30"
+project: galadriel
+version: 0.1.0
+language: es
+
+units:
+  - id: overview
+    path: README.md
+    intent: "¿Qué es Galadriel y cómo lo conecto a Cursor?"
+    scope: global
+    audience: [human, agent]
+    triggers: [galadriel, mcp, índice, search, impact]
+    hints: { priority: critical, load_strategy: eager }
+
+  - id: cli
+    path: src/cli.ts
+    intent: "¿Qué comandos existen y qué flags aceptan?"
+    scope: project
+    audience: [agent, developer]
+    depends_on: [scan, store, graph, mcp]
+
+  - id: scan
+    path: src/scan.ts
+    intent: "¿Cómo se recorre el repo, se trocea y se extraen imports?"
+    scope: module
+    audience: [agent, developer]
+    depends_on: [store]
+    triggers: [scan, chunk, imports, ignorar]
+
+  - id: store
+    path: src/store.ts
+    intent: "¿Cómo se guarda y se consulta el índice en SQLite FTS5?"
+    scope: module
+    audience: [agent, developer]
+    triggers: [sqlite, fts5, bm25, edges]
+
+  - id: graph
+    path: src/graph.ts
+    intent: "¿Cómo se calcula el impacto por niveles?"
+    scope: module
+    audience: [agent, developer]
+    depends_on: [store]
+
+  - id: mcp
+    path: src/mcp.ts
+    intent: "¿Qué herramientas expone el servidor MCP y con qué esquema?"
+    scope: module
+    audience: [agent, developer]
+    depends_on: [store, graph]
+    triggers: [mcp, tool, cursor]
+
+  - id: tests
+    path: test/scan.test.ts
+    intent: "¿Cómo se prueba el scan, la búsqueda y el impacto?"
+    scope: project
+    audience: [agent, developer]
+
+  - id: run-tests
+    kind: skill
+    path: docs/skills/run-tests.md
+    intent: "¿Cómo corro los tests y leo el resultado?"
+    audience: [agent, developer]
+    load_eligible: true
+    action_scope:
+      tools: [bash]
+      paths: ["test/**", "package.json"]
+
+relationships:
+  - { from: cli, to: mcp, type: depends_on }
+  - { from: mcp, to: store, type: depends_on }

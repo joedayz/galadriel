@@ -1,0 +1,9 @@
+Galadriel
+Copyright 2026 Jose Amadeo Diaz Diaz (joedayz)
+
+Este producto incluye software desarrollado por Jose Amadeo Diaz Diaz.
+
+Galadriel es una implementación independiente. Toma la idea de un índice
+local consultable por agentes de proyectos como Synthesis (exoreaction,
+Apache 2.0) y el Knowledge Context Protocol (Cantara, Apache 2.0), sin
+reutilizar su código.
