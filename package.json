@@ -1,6 +1,6 @@
 {
   "name": "galadriel",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "El Espejo del repositorio: índice local, grafo de dependencias y servidor MCP para Cursor. Sin modelo dentro.",
   "license": "Apache-2.0",
   "author": "Jose Amadeo Diaz Diaz <jose.diaz@joedayz.pe>",

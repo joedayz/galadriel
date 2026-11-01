@@ -1,6 +1,6 @@
 kcp_version: "0.30"
 project: galadriel
-version: 0.1.0
+version: 1.0.0
 language: es
 
 units:

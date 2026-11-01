@@ -11,7 +11,7 @@ import { advise, formatAdvice } from "./advisories.js";
 
 export async function serve(root: string): Promise<void> {
   const store = new Store(root);
-  const server = new McpServer({ name: "galadriel", version: "0.1.0" });
+  const server = new McpServer({ name: "galadriel", version: "1.0.0" });
 
   server.tool(
     "search",
@@ -87,7 +87,7 @@ export async function serve(root: string): Promise<void> {
 
   server.tool(
     "cycles",
-    "Ciclos de imports. Cada línea es un ciclo que vuelve al mismo archivo. Con modules, los ciclos son entre módulos Java.",
+    "Ciclos de imports. Cada línea es un ciclo que vuelve al mismo archivo. Con modules, los ciclos son entre módulos Java o proyectos .NET (.csproj).",
     { modules: z.boolean().optional() },
     async ({ modules }) => {
       let edges = graphEdges(store);
