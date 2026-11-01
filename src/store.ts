@@ -66,7 +66,46 @@ export class Store {
         PRIMARY KEY (src, dst, type)
       );
       CREATE INDEX IF NOT EXISTS edges_dst ON edges(dst);
+      CREATE TABLE IF NOT EXISTS meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `);
+  }
+
+  scanVersion(): string {
+    const row = this.db.prepare("SELECT value FROM meta WHERE key = ?").get("scan") as
+      | { value: string }
+      | undefined;
+    return row?.value ?? "";
+  }
+
+  setScanVersion(version: string): void {
+    this.db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('scan', ?)").run(version);
+  }
+
+  fileRecords(): { path: string; hash: string }[] {
+    return this.db.prepare("SELECT path, hash FROM files").all() as { path: string; hash: string }[];
+  }
+
+  movePath(from: string, to: string, meta: { size: number; mtime: number }): void {
+    const tx = this.db.transaction(() => {
+      this.db.prepare("UPDATE files SET path = ?, size = ?, mtime = ? WHERE path = ?").run(to, meta.size, meta.mtime, from);
+      this.db.prepare("UPDATE chunks SET path = ? WHERE path = ?").run(to, from);
+      this.db.prepare("UPDATE edges SET src = ? WHERE src = ?").run(to, from);
+      this.db.prepare("UPDATE edges SET dst = ? WHERE dst = ?").run(to, from);
+    });
+    tx();
+  }
+
+  replaceOutgoing(path: string, edges: Edge[]): void {
+    const del = this.db.prepare("DELETE FROM edges WHERE src = ?");
+    const ins = this.db.prepare("INSERT OR IGNORE INTO edges(src, dst, type) VALUES (?, ?, ?)");
+    const tx = this.db.transaction(() => {
+      del.run(path);
+      for (const e of edges) ins.run(e.from, e.to, e.type);
+    });
+    tx();
   }
 
   fileHash(path: string): string | undefined {
@@ -138,6 +177,26 @@ export class Store {
       .prepare("SELECT dst FROM edges WHERE src = ? ORDER BY dst")
       .all(path) as { dst: string }[];
     return rows.map((r) => r.dst);
+  }
+
+  edges(): Edge[] {
+    const rows = this.db.prepare("SELECT src, dst FROM edges ORDER BY src, dst").all() as {
+      src: string;
+      dst: string;
+    }[];
+    return rows.map((r) => ({ from: r.src, to: r.dst, type: "imports" as const }));
+  }
+
+  codePaths(): string[] {
+    const rows = this.db.prepare("SELECT path FROM files WHERE kind = 'code' ORDER BY path").all() as {
+      path: string;
+    }[];
+    return rows.map((r) => r.path);
+  }
+
+  importedPaths(): Set<string> {
+    const rows = this.db.prepare("SELECT DISTINCT dst FROM edges").all() as { dst: string }[];
+    return new Set(rows.map((r) => r.dst));
   }
 
   dependentsOf(path: string): string[] {

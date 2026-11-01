@@ -1,11 +1,13 @@
-// Servidor MCP por stdio para Cursor. Tres herramientas: search, relate, impact.
+// Servidor MCP por stdio para Cursor. search, relate, impact, graph, cycles, unused, advisories y stats.
 // Ninguna llama a un modelo. El razonamiento lo pone el modelo que Cursor ya usa.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { Store } from "./store.js";
-import { impact } from "./graph.js";
+import { collapseToModules, cycles, graphEdges, impact, toMermaid, unused } from "./graph.js";
+import { readModules } from "./scan.js";
+import { advise, formatAdvice } from "./advisories.js";
 
 export async function serve(root: string): Promise<void> {
   const store = new Store(root);
@@ -65,6 +67,54 @@ export async function serve(root: string): Promise<void> {
               .map((paths, i) => `nivel ${i + 1} (${paths.length}):\n` + paths.map((p) => `  ${p}`).join("\n"))
               .join("\n");
       return { content: [{ type: "text", text }] };
+    },
+  );
+
+  server.tool(
+    "graph",
+    "Diagrama Mermaid del grafo de imports. Sin ruta, todas las aristas. Con ruta, el vecindario hasta depth. Con modules, agrupa por módulo Java o por proyecto .NET (.csproj). La flecha A --> B significa que A depende de B.",
+    {
+      path: z.string().optional().describe("Ruta relativa. Si se omite, el grafo entero."),
+      depth: z.number().int().min(1).max(6).default(1),
+      modules: z.boolean().optional().describe("Agrupar por módulo Java (module-info) o por proyecto .NET (.csproj)."),
+    },
+    async ({ path, depth, modules }) => {
+      let edges = graphEdges(store, path, depth);
+      if (modules) edges = collapseToModules(edges, readModules(root));
+      return { content: [{ type: "text", text: toMermaid(edges, modules || !path ? [] : [path]) }] };
+    },
+  );
+
+  server.tool(
+    "cycles",
+    "Ciclos de imports. Cada línea es un ciclo que vuelve al mismo archivo. Con modules, los ciclos son entre módulos Java.",
+    { modules: z.boolean().optional() },
+    async ({ modules }) => {
+      let edges = graphEdges(store);
+      if (modules) edges = collapseToModules(edges, readModules(root));
+      const found = cycles(edges);
+      const text = found.length === 0 ? "sin ciclos" : found.map((c) => [...c, c[0]].join(" → ")).join("\n");
+      return { content: [{ type: "text", text }] };
+    },
+  );
+
+  server.tool(
+    "unused",
+    "Archivos de código que nadie importa. Omite entradas: Program, *Activity, *Controller, *Resource, *Application y *Test.",
+    {},
+    async () => {
+      const paths = unused(store);
+      const text = paths.length === 0 ? "sin código huérfano" : paths.join("\n");
+      return { content: [{ type: "text", text }] };
+    },
+  );
+
+  server.tool(
+    "advisories",
+    "Compara package.json, pom.xml y .csproj con un catálogo local. Sin red. Si no hay catálogo, lo dice y no inventa CVEs. Solo coincide la versión declarada tal cual, no un rango.",
+    { catalog: z.string().optional().describe("Ruta del JSON. Por defecto .galadriel/advisories.json") },
+    async ({ catalog }) => {
+      return { content: [{ type: "text", text: formatAdvice(advise(root, catalog)) }] };
     },
   );
 

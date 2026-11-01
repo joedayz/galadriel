@@ -10,14 +10,20 @@ Nada sale de la máquina. No hay telemetría. El índice vive en `.galadriel/esp
 
 | Comando | Qué devuelve |
 |---|---|
-| `galadriel scan [dir]` | Indexa código, docs y configuración. Incremental por hash; `--full` reindexa todo. |
+| `galadriel scan [dir]` | Indexa código, docs y configuración. Incremental por hash; si el mismo contenido cambia de ruta, las aristas lo siguen. `--full` reindexa todo. |
 | `galadriel search <consulta>` | Fragmentos ordenados por relevancia (SQLite FTS5, bm25, sin acentos). |
 | `galadriel relate <ruta>` | Qué importa ese archivo y quién lo importa. |
 | `galadriel impact <ruta>` | Dependientes por niveles hasta `--depth`. |
+| `galadriel graph [ruta]` | Mermaid del grafo. Sin ruta, todas las aristas. Con ruta, el vecindario hasta `--depth` (1 por defecto). `--modules` agrupa por módulo Java (`module-info.java`) o por proyecto .NET (`.csproj`). `A --> B` significa que A depende de B. |
+| `galadriel cycles` | Ciclos de imports. `--modules` los muestra entre módulos Java o proyectos .NET. |
+| `galadriel unused` | Código que nadie importa. Omite entradas: `Program`, `*Activity`, `*Controller`, `*Resource`, `*Application`, `*Test`. |
+| `galadriel watch [dir]` | Vuelve a indexar al guardar. Ctrl+C deja el índice al día. |
+| `galadriel lsp` | Servidor LSP por stdio. Ir a la definición y buscar referencias, archivo por archivo, con las aristas del índice. |
+| `galadriel advisories` | Compara `package.json`, `pom.xml` y `.csproj` con `.galadriel/advisories.json` (o `--catalog`). Sin red. Si no hay catálogo, lo dice y no inventa CVEs. Solo coincide una versión declarada tal cual, no un rango como `^1.2.3` ni `${propiedad}`. |
 | `galadriel stats` | Archivos, fragmentos y aristas en el índice. |
 | `galadriel serve` | Servidor MCP por stdio con las mismas herramientas. |
 
-Grafo de imports: relativos en JS/TS y `import` de paquete en Java. Es lo justo para que un agente vea que `audit/log.ts` lee la sesión antes de tocar `session.ts`.
+Grafo: imports relativos en JS/TS; en Java y Kotlin, `import`, el mismo paquete, las funciones de primer nivel y módulos anidados; en C#, `using`, el mismo namespace y los `service`/`message` de un `.proto` con `csharp_namespace`; en Markdown, un enlace relativo a un archivo del repo. Un enlace `http` no crea arista. Así un agente ve que `audit/log.ts` lee la sesión antes de tocar `session.ts`, y que una guía apunta a otra.
 
 ## Requisitos
 
